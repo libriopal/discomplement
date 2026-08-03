@@ -5,8 +5,12 @@ import git, { type GitAuth, type PromiseFsClient } from 'isomorphic-git';
 import http from 'isomorphic-git/http/web';
 import Cookies from 'js-cookie';
 import { toast } from 'react-toastify';
+import { encryptSecret, decryptSecret } from '~/lib/crypto/secretStorage';
 
-const lookupSavedPassword = (url: string) => {
+// `git:${domain}` cookies hold basic-auth username/password (or PAT) and are only ever read
+// by client-side isomorphic-git calls in this file - never parsed server-side from the raw
+// Cookie header - so it's safe to store them encrypted-at-rest.
+const lookupSavedPassword = async (url: string) => {
   const domain = url.split('/')[2];
   const gitCreds = Cookies.get(`git:${domain}`);
 
@@ -15,7 +19,8 @@ const lookupSavedPassword = (url: string) => {
   }
 
   try {
-    const { username, password } = JSON.parse(gitCreds || '{}');
+    const decrypted = await decryptSecret(gitCreds);
+    const { username, password } = JSON.parse(decrypted || '{}');
     return { username, password };
   } catch (error) {
     console.log(`Failed to parse Git Cookie ${error}`);
@@ -23,9 +28,15 @@ const lookupSavedPassword = (url: string) => {
   }
 };
 
-const saveGitAuth = (url: string, auth: GitAuth) => {
+const saveGitAuth = async (url: string, auth: GitAuth) => {
   const domain = url.split('/')[2];
-  Cookies.set(`git:${domain}`, JSON.stringify(auth));
+
+  try {
+    const encrypted = await encryptSecret(JSON.stringify(auth));
+    Cookies.set(`git:${domain}`, encrypted);
+  } catch (error) {
+    console.error('Failed to encrypt git credentials, not persisting:', error);
+  }
 };
 
 export function useGit() {
@@ -61,7 +72,7 @@ export function useGit() {
         'User-Agent': 'bolt.diy',
       };
 
-      const auth = lookupSavedPassword(url);
+      const auth = await lookupSavedPassword(url);
 
       if (auth) {
         headers.Authorization = `Basic ${Buffer.from(`${auth.username}:${auth.password}`).toString('base64')}`;
@@ -86,8 +97,8 @@ export function useGit() {
           onProgress: (event) => {
             console.log('Git clone progress:', event);
           },
-          onAuth: (url) => {
-            let auth = lookupSavedPassword(url);
+          onAuth: async (url) => {
+            let auth = await lookupSavedPassword(url);
 
             if (auth) {
               console.log('Using saved authentication for', url);
@@ -113,9 +124,9 @@ export function useGit() {
               `Authentication failed for ${url.split('/')[2]}. Please check your credentials and try again.`,
             );
           },
-          onAuthSuccess: (url, auth) => {
+          onAuthSuccess: async (url, auth) => {
             console.log(`Authentication successful for ${url}`);
-            saveGitAuth(url, auth);
+            await saveGitAuth(url, auth);
           },
         });
 

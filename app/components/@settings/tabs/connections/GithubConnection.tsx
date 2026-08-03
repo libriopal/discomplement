@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { logStore } from '~/lib/stores/logs';
 import { classNames } from '~/utils/classNames';
 import Cookies from 'js-cookie';
+import { encryptSecret } from '~/lib/crypto/secretStorage';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '~/components/ui/Collapsible';
 import { Button } from '~/components/ui/Button';
 
@@ -150,10 +151,16 @@ export default function GitHubConnection() {
         rateLimit,
       }));
 
-      // Set cookies for client-side access
+      /*
+       * Set cookies for client-side access. `githubToken`/`githubUsername` stay plaintext -
+       * they're read server-side from the raw Cookie header (api.system.git-info.ts,
+       * api.system.diagnostics.ts) and the WebCrypto key never leaves the browser, so the
+       * server couldn't decrypt them. `git:github.com` is only read client-side (useGit.ts),
+       * so it's encrypted at rest.
+       */
       Cookies.set('githubUsername', user.login);
       Cookies.set('githubToken', token);
-      Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
+      Cookies.set('git:github.com', await encryptSecret(JSON.stringify({ username: token, password: 'x-oauth-basic' })));
 
       // Store connection details in localStorage
       localStorage.setItem(
@@ -427,7 +434,9 @@ export default function GitHubConnection() {
 
     if (token) {
       Cookies.set('githubToken', token);
-      Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
+      encryptSecret(JSON.stringify({ username: token, password: 'x-oauth-basic' }))
+        .then((encrypted) => Cookies.set('git:github.com', encrypted))
+        .catch((error) => console.error('Failed to encrypt git credentials:', error));
     }
 
     if (data) {

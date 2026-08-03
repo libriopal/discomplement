@@ -16,6 +16,13 @@ const providerEnvKeyStatusCache: Record<string, boolean> = {};
 
 const apiKeyMemoizeCache: { [k: string]: Record<string, string> } = {};
 
+// NOTE: `apiKeys` is intentionally NOT encrypted-at-rest. It's read server-side directly from
+// the raw `Cookie` header (see app/lib/api/cookies.ts, used by api.chat.ts / api.llmcall.ts /
+// api.models.ts / api.enhancer.ts to actually call LLM providers). The WebCrypto key in
+// app/lib/crypto/secretStorage.ts is a non-extractable CryptoKey that never leaves this
+// browser's IndexedDB, so the server has no way to decrypt an encrypted cookie - encrypting
+// this value would break every LLM request. See app/lib/crypto/secretStorage.ts for the full
+// picture of what can/can't be encrypted under this cookie-based, server-read architecture.
 export function getApiKeysFromCookies() {
   const storedApiKeys = Cookies.get('apiKeys');
   let parsedKeys: Record<string, string> = {};
@@ -86,9 +93,9 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
   };
 
   return (
-    <div className="flex items-center justify-between py-3 px-1">
-      <div className="flex items-center gap-2 flex-1">
-        <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-2 py-3 px-1">
+      <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-bolt-elements-textSecondary">{provider?.name} API Key:</span>
           {!isEditing && (
             <div className="flex items-center gap-2">
@@ -113,16 +120,16 @@ export const APIKeyManager: React.FC<APIKeyManagerProps> = ({ provider, apiKey, 
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
         {isEditing ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <input
               type="password"
               value={tempKey}
               placeholder="Enter API Key"
               onChange={(e) => setTempKey(e.target.value)}
-              className="w-[300px] px-3 py-1.5 text-sm rounded border border-bolt-elements-borderColor 
-                        bg-bolt-elements-prompt-background text-bolt-elements-textPrimary 
+              className="w-full sm:w-[300px] px-3 py-1.5 text-sm rounded border border-bolt-elements-borderColor
+                        bg-bolt-elements-prompt-background text-bolt-elements-textPrimary
                         focus:outline-none focus:ring-2 focus:ring-bolt-elements-focus"
             />
             <IconButton

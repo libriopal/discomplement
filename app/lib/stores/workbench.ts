@@ -679,6 +679,7 @@ export class WorkbenchStore {
   ) {
     try {
       // Use cookies if username and token are not provided
+      // (githubToken/githubUsername are intentionally plaintext - see app/lib/crypto/secretStorage.ts)
       const githubToken = ghToken || Cookies.get('githubToken');
       const owner = githubUsername || Cookies.get('githubUsername');
 

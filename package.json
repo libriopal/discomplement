@@ -156,6 +156,9 @@
   },
   "devDependencies": {
     "@blitz/eslint-plugin": "0.1.0",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@cloudflare/workers-types": "^4.20241127.0",
     "@electron/notarize": "^2.5.0",
     "@iconify-json/ph": "^1.2.1",

@@ -46,3 +46,15 @@ docs/instructions/Roadmap.md
 .cursorrules
 *.md
 .qodo
+
+# Android / Capacitor
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/local.properties
+android/**/*.iml
+android/.idea/
+
+# Personal script with embedded (encrypted) API keys — never commit
+scripts/start-server-libriopal.sh
