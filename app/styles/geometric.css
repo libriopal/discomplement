@@ -92,12 +92,14 @@
 }
 
 button:focus-visible {
-  @apply focus-ring;
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
 }
 
 input:focus-visible,
 textarea:focus-visible {
-  @apply focus-ring;
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
 }
 
 /* Mobile Optimizations */
