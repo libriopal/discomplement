@@ -58,3 +58,11 @@ android/.idea/
 
 # Personal script with embedded (encrypted) API keys — never commit
 scripts/start-server-libriopal.sh
+scripts/inject-browser-keys-libriopal.sh
+
+# Plaintext cookie/secret dumps — never commit
+scripts/coo.key
+*.key
+
+# Personal local scratch copies — never commit
+apk2/
