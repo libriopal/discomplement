@@ -22,6 +22,8 @@ import type { Snapshot } from './types';
 import { webcontainer } from '~/lib/webcontainer';
 import { detectProjectCommands, createCommandActionsString } from '~/utils/projectCommands';
 import type { ContextAnnotation } from '~/types/context';
+import { currentProjectId } from '~/lib/stores/current-project';
+import { getProjectSlug, loadProjectFilesFromDisk } from '~/lib/persistence/project-disk';
 
 export interface ChatHistoryItem {
   id: string;
@@ -179,6 +181,51 @@ ${value.content}
             description.set(storedMessages.description);
             chatId.set(storedMessages.id);
             chatMetadata.set(storedMessages.metadata);
+
+            const projectId = getProjectSlug(storedMessages.urlId, storedMessages.id);
+            currentProjectId.set(projectId);
+
+            if (projectId) {
+              // "Load instantly": if this project already has a mirror on disk, populate the
+              // editor/file store from it right away instead of waiting for WebContainer boot +
+              // full chat-history/action replay to finish.
+              loadProjectFilesFromDisk(projectId)
+                .then((diskFiles) => {
+                  if (!diskFiles) {
+                    return;
+                  }
+
+                  const documents = Object.fromEntries(
+                    Object.entries(diskFiles).map(([filePath, content]) => [
+                      filePath,
+                      { type: 'file' as const, content, isBinary: false },
+                    ]),
+                  );
+
+                  workbenchStore.setDocuments(documents);
+
+                  // Also mirror straight into the WebContainer FS once it boots, so the replayed
+                  // actions just confirm already-correct content instead of starting from empty.
+                  webcontainer
+                    .then(async (wc) => {
+                      for (const [filePath, content] of Object.entries(diskFiles)) {
+                        try {
+                          const dir = filePath.split('/').slice(0, -1).join('/');
+
+                          if (dir) {
+                            await wc.fs.mkdir(dir, { recursive: true });
+                          }
+
+                          await wc.fs.writeFile(filePath, content);
+                        } catch (error) {
+                          console.warn('Failed to preload file into WebContainer from disk', filePath, error);
+                        }
+                      }
+                    })
+                    .catch(() => {});
+                })
+                .catch(() => {});
+            }
           } else {
             navigate('/', { replace: true });
           }

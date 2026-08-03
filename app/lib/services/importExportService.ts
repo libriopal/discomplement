@@ -61,7 +61,17 @@ export class ImportExportService {
    */
   static async exportSettings(): Promise<any> {
     try {
-      // Get all cookies
+      /*
+       * Get all cookies. Note on encryption-at-rest and export: `apiKeys`/`providers` are
+       * stored as plaintext cookies (not encrypted) because they must also be readable
+       * server-side from the raw Cookie header (see app/lib/api/cookies.ts) to actually make
+       * LLM calls - a browser-only, non-extractable WebCrypto key can't be decrypted by the
+       * server. So this export already ships them as plaintext, same as before this change.
+       * The one secret type that *is* encrypted-at-rest (`git:<domain>` cookies, see
+       * app/lib/hooks/useGit.ts and app/lib/crypto/secretStorage.ts) is deliberately NOT
+       * included in this export - its ciphertext is tied to this browser profile's
+       * non-portable IndexedDB key and would not decrypt on another device anyway.
+       */
       const allCookies = Cookies.get();
 
       // Create a comprehensive settings object

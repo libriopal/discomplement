@@ -179,6 +179,16 @@ export function useSettings(): UseSettingsReturn {
     Object.keys(providers).forEach((provider) => {
       providerSetting[provider] = providers[provider].settings;
     });
+    /*
+     * NOTE: intentionally NOT encrypted. The `providers` cookie (like `apiKeys` and
+     * `githubToken`) is read server-side via raw `Cookie` header parsing in
+     * app/lib/api/cookies.ts / app/routes/api.chat.ts, api.llmcall.ts, api.models.ts,
+     * api.enhancer.ts. The AES key used by app/lib/crypto/secretStorage.ts lives in this
+     * browser's IndexedDB as a non-extractable CryptoKey, so the server process has no way
+     * to decrypt it - encrypting this cookie would break every LLM request. See
+     * app/lib/crypto/secretStorage.ts for the full explanation of which secrets can/can't
+     * be encrypted under this architecture.
+     */
     Cookies.set('providers', JSON.stringify(providerSetting));
   }, [providers]);
 

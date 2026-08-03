@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import Cookies from 'js-cookie';
 import type { GitHubUserResponse } from '~/types/GitHub';
+import { encryptSecret } from '~/lib/crypto/secretStorage';
 
 interface GitHubAuthDialogProps {
   isOpen: boolean;
@@ -49,10 +50,17 @@ export function GitHubAuthDialog({ isOpen, onClose }: GitHubAuthDialogProps) {
 
         localStorage.setItem('github_connection', JSON.stringify(connectionData));
 
-        // Set cookies for API requests
+        /*
+         * Set cookies for API requests. `githubToken`/`githubUsername` are intentionally left
+         * as plaintext: they are read server-side directly from the raw Cookie header (see
+         * app/routes/api.system.git-info.ts, api.system.diagnostics.ts), and this browser's
+         * AES key (app/lib/crypto/secretStorage.ts) is non-extractable and never leaves the
+         * browser, so the server could never decrypt them. `git:github.com` (used only by
+         * client-side isomorphic-git in useGit.ts) is encrypted at rest.
+         */
         Cookies.set('githubToken', token);
         Cookies.set('githubUsername', userData.login);
-        Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
+        Cookies.set('git:github.com', await encryptSecret(JSON.stringify({ username: token, password: 'x-oauth-basic' })));
 
         toast.success(`Successfully connected as ${userData.login}`);
         setToken('');

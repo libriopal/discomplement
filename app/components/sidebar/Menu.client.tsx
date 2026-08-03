@@ -303,6 +303,20 @@ export const Menu = () => {
     };
   }, [isSettingsOpen]);
 
+  // Touch/mobile: hover-to-open doesn't work on touch devices, so allow toggling
+  // the sidebar via a tap on the header's sidebar icon (dispatches this event).
+  useEffect(() => {
+    function onToggleSidebar() {
+      setOpen((prev) => !prev);
+    }
+
+    window.addEventListener('bolt:toggle-sidebar', onToggleSidebar);
+
+    return () => {
+      window.removeEventListener('bolt:toggle-sidebar', onToggleSidebar);
+    };
+  }, []);
+
   const handleDuplicate = async (id: string) => {
     await duplicateCurrentChat(id);
     loadEntries(); // Reload the list after duplication
@@ -324,14 +338,21 @@ export const Menu = () => {
 
   return (
     <>
+      {open && (
+        <div
+          className="fixed inset-0 z-sidebar-backdrop bg-black/30 sm:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <motion.div
         ref={menuRef}
         initial="closed"
         animate={open ? 'open' : 'closed'}
         variants={menuVariants}
-        style={{ width: '340px' }}
         className={classNames(
           'flex selection-accent flex-col side-menu fixed top-0 h-full',
+          'w-[85vw] max-w-[340px]',
           'bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800/50',
           'shadow-sm text-sm',
           isSettingsOpen ? 'z-40' : 'z-sidebar',

@@ -6,6 +6,8 @@ import { createScopedLogger } from '~/utils/logger';
 import { unreachable } from '~/utils/unreachable';
 import type { ActionCallbackData } from './message-parser';
 import type { BoltShell } from '~/utils/shell';
+import { syncFileToDisk } from '~/lib/persistence/project-disk';
+import { currentProjectId } from '~/lib/stores/current-project';
 
 const logger = createScopedLogger('ActionRunner');
 
@@ -324,6 +326,14 @@ export class ActionRunner {
     try {
       await webcontainer.fs.writeFile(relativePath, action.content);
       logger.debug(`File written ${relativePath}`);
+
+      // Mirror the write to a real folder on disk (no-op if disk sync isn't available, e.g. when
+      // running against a Cloudflare deployment instead of `pnpm dev` / the Electron app).
+      const projectId = currentProjectId.get();
+
+      if (projectId) {
+        syncFileToDisk(projectId, relativePath, action.content);
+      }
     } catch (error) {
       logger.error('Failed to write file\n\n', error);
     }

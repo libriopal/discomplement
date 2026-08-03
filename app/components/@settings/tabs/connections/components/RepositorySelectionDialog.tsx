@@ -6,6 +6,7 @@ import { classNames } from '~/utils/classNames';
 import { getLocalStorage } from '~/lib/persistence';
 import { motion, AnimatePresence } from 'framer-motion';
 import Cookies from 'js-cookie';
+import { encryptSecret } from '~/lib/crypto/secretStorage';
 
 // Import UI components
 import { Input, SearchInput, Badge, FilterChip } from '~/components/ui';
@@ -102,10 +103,14 @@ export function RepositorySelectionDialog({ isOpen, onClose, onSelect }: Reposit
 
           localStorage.setItem('github_connection', JSON.stringify(newConnection));
 
-          // Also save as cookies for API requests
+          // Also save as cookies for API requests. githubToken/githubUsername stay plaintext
+          // since they're read server-side from the raw Cookie header; git:github.com is only
+          // read client-side (useGit.ts) so it's encrypted at rest.
           Cookies.set('githubToken', token);
           Cookies.set('githubUsername', userData.login);
-          Cookies.set('git:github.com', JSON.stringify({ username: token, password: 'x-oauth-basic' }));
+          encryptSecret(JSON.stringify({ username: token, password: 'x-oauth-basic' }))
+            .then((encrypted) => Cookies.set('git:github.com', encrypted))
+            .catch((error) => console.error('Failed to encrypt git credentials:', error));
 
           // Refresh repositories after connection is established
           if (isOpen && activeTab === 'my-repos') {
