@@ -50,6 +50,17 @@ interface MessageState {
   currentArtifact?: BoltArtifactData;
   currentAction: BoltActionData;
   actionId: number;
+  jsonParsed?: boolean;
+}
+
+interface JsonArtifactResponse {
+  message?: string;
+  artifacts?: Array<{
+    id?: string;
+    title?: string;
+    type?: string;
+    actions?: Array<Record<string, unknown>>;
+  }>;
 }
 
 function cleanoutMarkdownSyntax(content: string) {
@@ -86,6 +97,14 @@ export class StreamingMessageParser {
       };
 
       this.#messages.set(messageId, state);
+    }
+
+    // Cohere responses use native JSON. Keep the legacy XML parser below for
+    // imported/history messages, but generated responses are parsed directly
+    // from the JSON object so code content never has to pass through XML.
+    const normalizedInput = input.trim().replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
+    if (normalizedInput.startsWith('{')) {
+      return this.#parseJsonResponse(messageId, state, normalizedInput);
     }
 
     let output = '';
@@ -275,6 +294,57 @@ export class StreamingMessageParser {
     }
 
     state.position = i;
+
+    return output;
+  }
+
+  #parseJsonResponse(messageId: string, state: MessageState, input: string) {
+    if (state.jsonParsed) return '';
+
+    let response: JsonArtifactResponse;
+    try {
+      response = JSON.parse(input) as JsonArtifactResponse;
+    } catch {
+      // JSON is streamed a chunk at a time; wait until the object is complete.
+      return '';
+    }
+
+    state.jsonParsed = true;
+    let output = typeof response.message === 'string' ? response.message : '';
+
+    for (const [artifactIndex, artifact] of (response.artifacts ?? []).entries()) {
+      const artifactId = artifact.id || `artifact-${artifactIndex + 1}`;
+      const artifactData = {
+        messageId,
+        id: artifactId,
+        title: artifact.title || 'Generated code',
+        type: artifact.type || 'code',
+      } satisfies ArtifactCallbackData;
+
+      this._options.callbacks?.onArtifactOpen?.(artifactData);
+
+      for (const [actionIndex, rawAction] of (artifact.actions ?? []).entries()) {
+        const type = rawAction.type;
+        if (!['file', 'shell', 'start', 'build', 'supabase'].includes(String(type))) continue;
+
+        const action = {
+          ...rawAction,
+          type,
+          content: typeof rawAction.content === 'string' ? rawAction.content : '',
+        } as BoltAction;
+        const actionData = {
+          artifactId,
+          messageId,
+          actionId: `${artifactIndex}-${actionIndex}`,
+          action,
+        } satisfies ActionCallbackData;
+
+        this._options.callbacks?.onActionOpen?.(actionData);
+        this._options.callbacks?.onActionClose?.(actionData);
+      }
+
+      this._options.callbacks?.onArtifactClose?.(artifactData);
+    }
 
     return output;
   }

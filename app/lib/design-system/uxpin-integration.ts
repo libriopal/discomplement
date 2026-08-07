@@ -526,13 +526,13 @@ export function BicameralLayout({
           <div className="flex gap-2">
             <button
               onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-              className={`px-4 py-2 rounded-lg ${leftSidebarOpen ? 'bg-semantic-blue text-white' : 'bg-gray-100'}`}
+              className={\`px-4 py-2 rounded-lg ${leftSidebarOpen ? 'bg-semantic-blue text-white' : 'bg-gray-100'}\`}
             >
               Design
             </button>
             <button
               onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
-              className={`px-4 py-2 rounded-lg ${rightSidebarOpen ? 'bg-technical-purple text-white' : 'bg-gray-100'}`}
+              className={\`px-4 py-2 rounded-lg ${rightSidebarOpen ? 'bg-technical-purple text-white' : 'bg-gray-100'}\`}
             >
               Code
             </button>
@@ -664,7 +664,7 @@ File: app/routes/bicameral.tsx
 
 import { useState } from 'react';
 import type { MetaFunction } from '@remix-run/cloudflare';
-import { CohereClientV2 } from 'cohere-sdk';
+import { CohereClientV2 } from 'cohere-ai';
 import { executePromptToApp } from '~/lib/lattice/bicameral-engine';
 import { BicameralLayout } from '~/components/bicameral/BicameralLayout';
 
@@ -734,11 +734,11 @@ export default function BicameralPage() {
               <button
                 onClick={handleSubmitPrompt}
                 disabled={loading || !prompt.trim()}
-                className={`w-full mt-4 py-3 rounded-lg font-semibold text-white transition ${
+                className={\`w-full mt-4 py-3 rounded-lg font-semibold text-white transition ${
                   loading || !prompt.trim()
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-semantic-blue to-technical-purple hover:shadow-lg'
-                }`}
+                }\`}
               >
                 {loading ? '🧠 Processing...' : '✨ Start Bicameral Pipeline'}
               </button>

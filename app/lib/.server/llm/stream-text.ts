@@ -121,6 +121,11 @@ export async function streamText(props: {
       },
     }) ?? getSystemPrompt();
 
+  // All generated code now travels as a native JSON document. This is kept at
+  // the final assembly point so custom/optimized prompts cannot re-enable the
+  // legacy XML artifact protocol.
+  systemPrompt = `${systemPrompt}\n\n<json_output_contract>\nReturn only valid JSON (no Markdown fences or XML): {"message":"summary","artifacts":[{"id":"id","title":"title","type":"code","actions":[{"type":"file|shell|start|build|supabase","filePath":"relative/path","content":"..."}]}]}. Include complete file contents.\n</json_output_contract>`;
+
   if (contextFiles && contextOptimization) {
     const codeContext = createFilesContext(contextFiles, true);
 
@@ -192,6 +197,9 @@ ${lockedFilesListString}
     system: systemPrompt,
     maxTokens: dynamicMaxTokens,
     messages: convertToCoreMessages(processedMessages as any),
+    ...(currentProvider === 'Cohere'
+      ? { providerOptions: { cohere: { responseFormat: { type: 'json_object' } } } }
+      : {}),
     ...options,
   });
 }

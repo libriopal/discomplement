@@ -1,4 +1,4 @@
-import { CohereClientV2 } from 'cohere-sdk';
+import { CohereClientV2 } from 'cohere-ai';
 
 let cohereClient: CohereClientV2 | null = null;
 
@@ -23,6 +23,15 @@ export interface GovernanceConfig {
   customRules?: string[];
 }
 
+function getChatText(response: { message?: { content?: Array<{ type?: string; text?: string }> } }) {
+  return response.message?.content?.find((part) => part.type === 'text')?.text || '';
+}
+
+function parseJsonObject<T>(text: string): T {
+  const normalized = text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/i, '');
+  return JSON.parse(normalized) as T;
+}
+
 export async function analyzeWithGovernance(
   text: string,
   config: GovernanceConfig
@@ -31,9 +40,11 @@ export async function analyzeWithGovernance(
     const client = getCohereClient();
 
     // Check for harmful content using Cohere API
-    const response = await client.generate({
+    const response = await client.chat({
       model: 'command-r-plus',
-      prompt: `You are a content safety analyzer. Analyze the following text for harmful content, PII, and bias. Return a JSON object with:
+      messages: [{
+        role: 'user',
+        content: `You are a content safety analyzer. Analyze the following text for harmful content, PII, and bias. Return a JSON object with:
 {
   "safe": boolean,
   "violations": ["violation1", "violation2"],
@@ -52,11 +63,12 @@ ${config.enablePIIDetection ? 'Check for: emails, phone numbers, addresses, SSNs
 ${config.enableBiasDetection ? 'Check for: stereotypes, unfair generalizations, discriminatory language.' : ''}
 
 Respond only with the JSON object.`,
+      }],
       maxTokens: 200,
+      responseFormat: { type: 'json_object' },
     });
 
-    const content = response.generations?.[0]?.text || '';
-    const result = JSON.parse(content);
+    const result = parseJsonObject<{ safe: boolean; violations: string[]; confidence: number }>(getChatText(response));
 
     return result;
   } catch (error) {
@@ -83,13 +95,13 @@ export async function generateWithGovernance(
   }
 
   // Generate with Cohere
-  const response = await client.generate({
+  const response = await client.chat({
     model: 'command-r-plus',
-    prompt,
+    messages: [{ role: 'user', content: prompt }],
     maxTokens: 500,
   });
 
-  const generatedText = response.generations?.[0]?.text || '';
+  const generatedText = getChatText(response);
 
   // Check output
   const outputAnalysis = await analyzeWithGovernance(generatedText, config);

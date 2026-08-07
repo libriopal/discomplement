@@ -9,7 +9,7 @@
  * Prioritizes Scite (free) → Local processing → Cohere (paid, sparingly)
  */
 
-import type { CohereClientV2 } from 'cohere-sdk';
+import type { CohereClientV2 } from 'cohere-ai';
 import {
   type MemoryNode,
   type MemoryLattice,

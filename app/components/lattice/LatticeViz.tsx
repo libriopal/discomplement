@@ -18,8 +18,8 @@ export function LatticeViz() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.offsetWidth;
-    const height = canvas.offsetHeight;
+    const width = Math.max(canvas.offsetWidth, 1);
+    const height = Math.max(canvas.offsetHeight, 1);
 
     // Set canvas size
     canvas.width = width;
@@ -39,7 +39,7 @@ export function LatticeViz() {
         nodes.push({
           x: i * spacing + Math.cos(angle) * radius,
           y: j * spacing + Math.sin(angle) * radius,
-          size: Math.sin((i + j) * Math.PI / gridSize) * 4 + 3,
+          size: Math.max(Math.sin((i + j) * Math.PI / gridSize) * 4 + 3, 1),
           color: `hsl(${(i * 60 + j * 30) % 360}, 70%, 50%)`,
           glow: (i + j) % 2 === 0,
         });
@@ -82,8 +82,10 @@ export function LatticeViz() {
         if (node.glow) {
           // Draw glow
           const gradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.size * 3);
-          gradient.addColorStop(0, node.color + '60');
-          gradient.addColorStop(1, node.color + '00');
+          const glowColor = node.color.replace('hsl(', 'hsla(').replace(')', ', 0.38)');
+          const transparentColor = node.color.replace('hsl(', 'hsla(').replace(')', ', 0)');
+          gradient.addColorStop(0, glowColor);
+          gradient.addColorStop(1, transparentColor);
           ctx.fillStyle = gradient;
           ctx.beginPath();
           ctx.arc(node.x, node.y, node.size * 3 * pulse, 0, Math.PI * 2);

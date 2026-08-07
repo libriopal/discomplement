@@ -7,7 +7,7 @@
  * - Bridge: Lattice geometry for parallel reasoning & memory mapping
  */
 
-import type { CohereClientV2 } from 'cohere-sdk';
+import type { CohereClientV2 } from 'cohere-ai';
 
 export interface MemoryNode {
   id: string;
